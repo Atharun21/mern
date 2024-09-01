@@ -1,0 +1,160 @@
+Set up the project:
+Install Node.js and npm
+node -v
+npm -v
+
+Initialize a new project
+mkdir todo-app
+cd todo-app
+npm init -y
+
+
+Backend (Node.js, Express, MongoDB):
+Install necessary dependencies:
+npm install express mongoose body-parser cors
+
+Create a basic Express server (server.js):
+javascript
+
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+
+// Initialize the Express App
+const app = express();
+app.use(cors());
+app.use(bodyParser.json());
+
+// MongoDB Connection
+mongoose.connect('mongodb://localhost:27017/todoDB', { useNewUrlParser: true, useUnifiedTopology: true })
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error(err));
+
+// Task Schema and Model
+const taskSchema = new mongoose.Schema({
+    title: String,
+    completed: Boolean
+});
+const Task = mongoose.model('Task', taskSchema);
+
+// Routes
+
+// Get all tasks
+app.get('/tasks', async (req, res) => {
+    const tasks = await Task.find();
+    res.json(tasks);
+});
+
+// Add new task
+app.post('/tasks', async (req, res) => {
+    const newTask = new Task(req.body);
+    await newTask.save();
+    res.json(newTask);
+});
+
+// Edit task
+app.put('/tasks/:id', async (req, res) => {
+    const updatedTask = await Task.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.json(updatedTask);
+});
+
+// Delete task
+app.delete('/tasks/:id', async (req, res) => {
+    const deletedTask = await Task.findByIdAndRemove(req.params.id);
+    res.json(deletedTask);
+});
+
+// Start the server
+app.listen(5000, () => console.log('Server running on port 5000'));
+
+
+
+Frontend (React.js):
+Set up React:
+In the project root directory:
+
+npx create-react-app client
+cd client
+npm start
+
+Install Axios for HTTP requests:
+npm install axios
+
+
+Create a To-Do List UI (client/src/App.js):
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+function App() {
+    const [tasks, setTasks] = useState([]);
+    const [newTask, setNewTask] = useState('');
+
+    // Fetch tasks from server
+    useEffect(() => {
+        axios.get('http://localhost:5000/tasks')
+            .then(res => setTasks(res.data))
+            .catch(err => console.error(err));
+    }, []);
+
+    // Add new task
+    const addTask = () => {
+        if (newTask.trim()) {
+            axios.post('http://localhost:5000/tasks', { title: newTask, completed: false })
+                .then(res => setTasks([...tasks, res.data]))
+                .catch(err => console.error(err));
+            setNewTask('');
+        }
+    };
+
+    // Update task completion status
+    const toggleTask = (id, completed) => {
+        axios.put(`http://localhost:5000/tasks/${id}`, { completed: !completed })
+            .then(res => setTasks(tasks.map(task => task._id === id ? res.data : task)))
+            .catch(err => console.error(err));
+    };
+
+    // Delete a task
+    const deleteTask = (id) => {
+        axios.delete(`http://localhost:5000/tasks/${id}`)
+            .then(() => setTasks(tasks.filter(task => task._id !== id)))
+            .catch(err => console.error(err));
+    };
+
+    return (
+        <div>
+            <h1>To-Do List</h1>
+            <input 
+                type="text" 
+                value={newTask} 
+                onChange={(e) => setNewTask(e.target.value)} 
+                placeholder="Add new task"
+            />
+            <button onClick={addTask}>Add Task</button>
+
+            <ul>
+                {tasks.map(task => (
+                    <li key={task._id}>
+                        <input 
+                            type="checkbox" 
+                            checked={task.completed} 
+                            onChange={() => toggleTask(task._id, task.completed)}
+                        />
+                        {task.title}
+                        <button onClick={() => deleteTask(task._id)}>Delete</button>
+                    </li>
+                ))}
+            </ul>
+        </div>
+    );
+}
+
+export default App;
+
+Connecting Frontend and Backend:
+In your React app (client/package.json), set up a proxy to the backend:
+"proxy": "http://localhost:5000",
+
+
+ MongoDB Setup:
+mongod
